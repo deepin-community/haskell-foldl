@@ -1,0 +1,109 @@
+Source: haskell-foldl
+Maintainer: Debian Haskell Group <pkg-haskell-maintainers@lists.alioth.debian.org>
+Uploaders:
+ Clint Adams <clint@debian.org>,
+Priority: optional
+Section: haskell
+Rules-Requires-Root: no
+Build-Depends:
+ cdbs,
+ debhelper (>= 10),
+ ghc (>= 8.4.3),
+ ghc-prof,
+ haskell-devscripts (>= 0.13),
+ libghc-comonad-dev (<< 6),
+ libghc-comonad-dev (>= 4.0),
+ libghc-comonad-prof,
+ libghc-contravariant-dev (<< 1.6),
+ libghc-contravariant-prof,
+ libghc-hashable-dev (<< 1.4),
+ libghc-hashable-prof,
+ libghc-mwc-random-dev (>= 0.13.1.0),
+ libghc-mwc-random-dev (<< 0.15),
+ libghc-mwc-random-prof,
+ libghc-primitive-dev (<< 0.8),
+ libghc-primitive-prof,
+ libghc-profunctors-dev (<< 5.6),
+ libghc-profunctors-prof,
+ libghc-semigroupoids-dev (>= 1.0),
+ libghc-semigroupoids-dev (<< 5.4),
+ libghc-semigroupoids-prof,
+ libghc-semigroups-dev (>= 0.17),
+ libghc-semigroups-dev (<< 1.20),
+ libghc-semigroups-prof,
+ libghc-unordered-containers-dev (<< 0.3),
+ libghc-unordered-containers-prof,
+ libghc-vector-dev (>= 0.7),
+ libghc-vector-dev (<< 0.13),
+ libghc-vector-prof,
+ libghc-vector-builder-dev (<< 0.4),
+ libghc-vector-builder-prof,
+Build-Depends-Indep: ghc-doc,
+ libghc-comonad-doc,
+ libghc-contravariant-doc,
+ libghc-hashable-doc,
+ libghc-mwc-random-doc,
+ libghc-primitive-doc,
+ libghc-profunctors-doc,
+ libghc-semigroupoids-doc,
+ libghc-semigroups-doc,
+ libghc-unordered-containers-doc,
+ libghc-vector-doc,
+ libghc-vector-builder-doc,
+Standards-Version: 4.1.4
+Homepage: http://hackage.haskell.org/package/foldl
+Vcs-Browser: https://salsa.debian.org/haskell-team/DHG_packages/tree/master/p/haskell-foldl
+Vcs-Git: https://salsa.debian.org/haskell-team/DHG_packages.git [p/haskell-foldl]
+X-Description: composable, streaming, and efficient left folds
+ This library provides strict left folds that stream in constant
+ memory, and you can combine folds using Applicative style to derive
+ new folds. Derived folds still traverse the container just once and
+ are often as efficient as hand-written folds.
+
+Package: libghc-foldl-dev
+Architecture: any
+Depends:
+ ${haskell:Depends},
+ ${misc:Depends},
+ ${shlibs:Depends},
+Recommends:
+ ${haskell:Recommends},
+Suggests:
+ ${haskell:Suggests},
+Provides:
+ ${haskell:Provides},
+Description: ${haskell:ShortDescription}${haskell:ShortBlurb}
+ ${haskell:LongDescription}
+ .
+ ${haskell:Blurb}
+
+Package: libghc-foldl-prof
+Architecture: any
+Depends:
+ ${haskell:Depends},
+ ${misc:Depends},
+Recommends:
+ ${haskell:Recommends},
+Suggests:
+ ${haskell:Suggests},
+Provides:
+ ${haskell:Provides},
+Description: ${haskell:ShortDescription}${haskell:ShortBlurb}
+ ${haskell:LongDescription}
+ .
+ ${haskell:Blurb}
+
+Package: libghc-foldl-doc
+Architecture: all
+Section: doc
+Depends:
+ ${haskell:Depends},
+ ${misc:Depends},
+Recommends:
+ ${haskell:Recommends},
+Suggests:
+ ${haskell:Suggests},
+Description: ${haskell:ShortDescription}${haskell:ShortBlurb}
+ ${haskell:LongDescription}
+ .
+ ${haskell:Blurb}
