@@ -1,8 +1,9 @@
-haskell-foldl (1.4.6-deepin1) unstable; urgency=medium
+haskell-foldl (1.4.12-1) unstable; urgency=medium
 
-  * Rebuild
+  * Declare compliance with Debian policy 4.6.1
+  * New upstream release
 
- -- Deepin Packages Builder <packages@deepin.org>  Mon, 14 Nov 2022 17:38:21 +0800
+ -- Ilias Tsitsimpis <iliastsi@debian.org>  Sun, 24 Jul 2022 14:22:50 +0300
 
 haskell-foldl (1.4.6-1) unstable; urgency=medium
 

@@ -1,3 +1,29 @@
+1.4.12
+
+* `Data.Functor.Extend.Extended` instances for `Fold` / `FoldM`
+* Remove dependency on `mwc-random`
+
+1.4.11
+
+* Fix doctest failure when built against newer versions of the `hashable`
+  package
+
+1.4.10
+
+* Fix space leaks in `scan` / `scanM`
+
+1.4.9
+
+* Implement `vector` utility more efficiently
+
+1.4.8
+
+* Only depend on `semigroups` for older GHC versions
+
+1.4.7
+
+* Add `foldByKey{,Hash}Map` functions
+
 1.4.6
 
 * Add `nest`/`predropWhile`/`drop`/`dropM`
