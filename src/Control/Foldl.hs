@@ -39,6 +39,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE Trustworthy               #-}
 
 module Control.Foldl (
@@ -99,7 +100,9 @@ module Control.Foldl (
     , set
     , hashSet
     , map
+    , foldByKeyMap
     , hashMap
+    , foldByKeyHashMap
     , vector
     , vectorM
 
@@ -151,11 +154,13 @@ import Control.Comonad
 import Data.Foldable (Foldable)
 import Data.Functor.Identity (Identity, runIdentity)
 import Data.Functor.Contravariant (Contravariant(..))
+import Data.HashMap.Strict (HashMap)
 import Data.Map.Strict (Map, alter)
 import Data.Maybe (fromMaybe)
 import Data.Monoid hiding ((<>))
 import Data.Semigroup (Semigroup(..))
 import Data.Semigroupoid (Semigroupoid)
+import Data.Functor.Extend (Extend(..))
 import Data.Profunctor
 import Data.Sequence ((|>))
 import Data.Vector.Generic (Vector, Mutable)
@@ -163,7 +168,7 @@ import Data.Vector.Generic.Mutable (MVector)
 import Data.Hashable (Hashable)
 import Data.Traversable
 import Numeric.Natural (Natural)
-import System.Random.MWC (GenIO, createSystemRandom, uniformR)
+import System.Random (StdGen, newStdGen, uniformR)
 import Prelude hiding
     ( head
     , last
@@ -193,9 +198,8 @@ import qualified Data.Map.Strict             as Map
 import qualified Data.HashMap.Strict         as HashMap
 import qualified Data.HashSet                as HashSet
 import qualified Data.Vector.Generic         as V
+import qualified Control.Foldl.Util.Vector   as V
 import qualified Data.Vector.Generic.Mutable as M
-import qualified VectorBuilder.Builder
-import qualified VectorBuilder.Vector
 import qualified Data.Semigroupoid
 
 {- $setup
@@ -256,6 +260,10 @@ instance Applicative (Fold a) where
             done (Pair xL xR) = doneL xL (doneR xR)
         in  Fold step begin done
     {-# INLINE (<*>) #-}
+
+instance Extend (Fold a) where
+    duplicated = duplicate
+    {-# INLINE duplicated #-}
 
 instance Semigroup b => Semigroup (Fold a b) where
     (<>) = liftA2 (<>)
@@ -392,6 +400,10 @@ instance Applicative m => Applicative (FoldM m a) where
             done (Pair xL xR) = doneL xL <*> doneR xR
         in  FoldM step begin done
     {-# INLINE (<*>) #-}
+
+instance Monad m => Extend (FoldM m a) where
+    duplicated = duplicateM
+    {-# INLINE duplicated #-}
 
 instance Functor m => Profunctor (FoldM m) where
     rmap = fmap
@@ -795,14 +807,14 @@ random :: FoldM IO a (Maybe a)
 random = FoldM step begin done
   where
     begin = do
-        g <- createSystemRandom
+        g <- newStdGen
         return $! Pair3 g Nothing' (1 :: Int)
 
     step (Pair3 g Nothing'  _) a = return $! Pair3 g (Just' a) 2
     step (Pair3 g (Just' a) m) b = do
-        n <- uniformR (1, m) g
+        let (n, g') = uniformR (1, m) g
         let c = if n == 1 then b else a
-        return $! Pair3 g (Just' c) (m + 1)
+        return $! Pair3 g' (Just' c) (m + 1)
 
     done (Pair3 _ ma _) = return (lazy ma)
 {-# INLINABLE random #-}
@@ -813,7 +825,7 @@ data RandomNState v a = RandomNState
     { _size      ::                !VectorState
     , _reservoir ::                !(Mutable v RealWorld a)
     , _position  :: {-# UNPACK #-} !Int
-    , _gen       :: {-# UNPACK #-} !GenIO
+    , _gen       :: {-# UNPACK #-} !StdGen
     }
 
 -- | Pick several random elements, using reservoir sampling
@@ -829,15 +841,15 @@ randomN n = FoldM step begin done
         let s  = if n <= m' then Complete else Incomplete m'
         return $! RandomNState s mv (i + 1) g
     step (RandomNState  Complete      mv i g) a = do
-        r <- uniformR (0, i - 1) g
+        let (r, g') = uniformR (0, i - 1) g
         if r < n
             then M.unsafeWrite mv r a
             else return ()
-        return (RandomNState Complete mv (i + 1) g)
+        return (RandomNState Complete mv (i + 1) g')
 
     begin = do
         mv  <- M.new n
-        gen <- createSystemRandom
+        gen <- newStdGen
         let s = if n <= 0 then Complete else Incomplete 0
         return (RandomNState s mv 1 gen)
 
@@ -940,6 +952,28 @@ map = Fold step begin done
     done = id
 {-# INLINABLE map #-}
 
+
+{- | Given a 'Fold', produces a 'Map' which applies that fold to each @a@ separated by key @k@.
+
+>>> fold (foldByKeyMap Control.Foldl.sum) [("a",1), ("b",2), ("b",20), ("a",10)]
+fromList [("a",11),("b",22)]
+-}
+foldByKeyMap :: forall k a b. Ord k => Fold a b -> Fold (k, a) (Map k b)
+foldByKeyMap f = case f of
+  Fold (step0 :: x -> a -> x) (ini0 :: x) (end0 :: x -> b) ->
+    let
+      step :: Map k x -> (k,a) -> Map k x
+      step mp (k,a) = Map.alter addToMap k mp where
+        addToMap Nothing         = Just $ step0 ini0 a
+        addToMap (Just existing) = Just $ step0 existing a
+
+      ini :: Map k x
+      ini = Map.empty
+
+      end :: Map k x -> Map k b
+      end = fmap end0
+    in Fold step ini end where
+
 {-|
 Fold pairs into a hash-map.
 -}
@@ -951,15 +985,30 @@ hashMap = Fold step begin done
     done = id
 {-# INLINABLE hashMap #-}
 
+{- | Given a 'Fold', produces a 'HashMap' which applies that fold to each @a@ separated by key @k@.
+
+>>> List.sort (HashMap.toList (fold (foldByKeyHashMap Control.Foldl.sum) [("a",1), ("b",2), ("b",20), ("a",10)]))
+[("a",11),("b",22)]
+-}
+foldByKeyHashMap :: forall k a b. (Hashable k, Eq k) => Fold a b -> Fold (k, a) (HashMap k b)
+foldByKeyHashMap f = case f of
+  Fold (step0 :: x -> a -> x) (ini0 :: x) (end0 :: x -> b) ->
+    let
+      step :: HashMap k x -> (k,a) -> HashMap k x
+      step mp (k,a) = HashMap.alter addToHashMap k mp where
+        addToHashMap Nothing         = Just $ step0 ini0 a
+        addToHashMap (Just existing) = Just $ step0 existing a
+
+      ini :: HashMap k x
+      ini = HashMap.empty
+
+      end :: HashMap k x -> HashMap k b
+      end = fmap end0
+    in Fold step ini end where
+
 -- | Fold all values into a vector
 vector :: Vector v a => Fold a (v a)
-vector = Fold step begin done
-  where
-    begin = VectorBuilder.Builder.empty
-
-    step x a = x <> VectorBuilder.Builder.singleton a
-
-    done = VectorBuilder.Vector.build
+vector = V.fromReverseListN <$> length <*> revList
 {-# INLINABLE vector #-}
 
 maxChunkSize :: Int
